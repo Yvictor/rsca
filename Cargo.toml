@@ -1,9 +1,5 @@
-[package]
-name = "rsca"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-openssl = "0.10.56"
+[workspace]
+members = [
+    "rsca",
+    "pyrsca",
+]
