@@ -14,3 +14,9 @@ classifiers = [
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-dotenv"
+]
