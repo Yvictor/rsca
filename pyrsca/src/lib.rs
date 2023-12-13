@@ -1,17 +1,35 @@
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
+use pyo3::exceptions::PyValueError;
+// use pyo3::types::PyBytes;
+
 
 #[pyclass]
 struct PyTWCA {
     twca: rsca::TWCA
 }
 
+#[derive(Debug)]
+struct PyTWCAError(rsca::TWCAError);
+
+
+impl std::convert::From<rsca::TWCAError> for PyTWCAError {
+    fn from(err: rsca::TWCAError) -> PyTWCAError {
+        PyTWCAError(err)
+    }
+}
+
+impl std::convert::From<PyTWCAError> for PyErr {
+    fn from(err: PyTWCAError) -> PyErr {
+        PyValueError::new_err(err.0.to_string())
+    }
+}
+
 #[pymethods]
 impl PyTWCA {
     #[new]
-    fn new(path: &str, password: &str) -> Self {
-        let twca = rsca::TWCA::new(path, password).unwrap();
-        PyTWCA { twca }
+    fn new(path: &str, password: &str) -> Result<Self, PyTWCAError> {
+        let twca = rsca::TWCA::new(path, password)?;
+        Ok(PyTWCA { twca })
     }
 
     fn get_person_id(&self) -> PyResult<String> {
