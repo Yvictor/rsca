@@ -32,9 +32,14 @@ impl PyTWCA {
         Ok(PyTWCA { twca })
     }
 
-    fn get_person_id(&self) -> PyResult<String> {
-        Ok(self.twca.get_common_name().unwrap())
+    fn get_cert_person_id(&self) -> Result<String, PyTWCAError> {
+        Ok(self.twca.get_cert_person_id()?)
     }
+
+    fn is_activate(&self) -> bool {
+        true
+    }
+    
 }
 
 /// Formats the sum of two numbers as string.
