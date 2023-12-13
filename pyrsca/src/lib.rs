@@ -1,16 +1,14 @@
-use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
 // use pyo3::types::PyBytes;
-
 
 #[pyclass]
 struct PyTWCA {
-    twca: rsca::TWCA
+    twca: rsca::TWCA,
 }
 
 #[derive(Debug)]
 struct PyTWCAError(rsca::TWCAError);
-
 
 impl std::convert::From<rsca::TWCAError> for PyTWCAError {
     fn from(err: rsca::TWCAError) -> PyTWCAError {
@@ -39,7 +37,22 @@ impl PyTWCA {
     fn is_activate(&self) -> bool {
         true
     }
-    
+
+    fn get_expire_timestamp(&self) -> Result<i64, PyTWCAError> {
+        Ok(self.twca.get_expire_time()?.timestamp())
+    }
+
+    fn _sign(&self, plain_text: &str) -> Result<String, PyTWCAError> {
+        Ok(self.twca._sign(&plain_text.as_bytes())?)
+    }
+
+    fn get_quote_sign(&self, plain_text: &str) -> Result<String, PyTWCAError> {
+        Ok(self.twca.get_quote_sign(&plain_text)?)
+    }
+
+    fn sign(&self, plain_text: &str) -> Result<String, PyTWCAError> {
+        Ok(self.twca.sign(&plain_text)?)
+    }
 }
 
 /// Formats the sum of two numbers as string.
