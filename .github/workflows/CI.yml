@@ -113,6 +113,7 @@ jobs:
         with:
           command: sdist
           args: --out dist
+          working-directory: pyrsca
       - name: Upload sdist
         uses: actions/upload-artifact@v3
         with:
