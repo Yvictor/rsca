@@ -6,7 +6,9 @@ use openssl::pkcs7::{Pkcs7, Pkcs7Flags};
 use openssl::pkey::{PKey, Private};
 use openssl::stack::Stack;
 use openssl::x509::X509;
+use std::time::SystemTimeError;
 // use base64::{Engine as _, engine::general_purpose};
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use snafu::prelude::Snafu;
 use snafu::{OptionExt, ResultExt};
 use speedate::DateTime;
@@ -17,6 +19,8 @@ pub enum TWCAError {
     PathNotFound { path: String },
     #[snafu(display("OpenSSL Error {}", source))]
     OpensslError { source: ErrorStack },
+    #[snafu(display("SystemTime Error {}", source))]
+    SystemTime { source: SystemTimeError },
     #[snafu(display("Datetime Parse Error {error}"))]
     DatetimeParse { error: String },
     #[snafu(display("ReadFile Error {}", source))]
@@ -27,40 +31,53 @@ pub enum TWCAError {
     PKeyNotFound {},
     #[snafu(display("Cert CN Not Found"))]
     CertCNNotFound {},
+    #[snafu(display("Cert Person ID Not Found"))]
+    CertPersonIdNotFound {},
 }
 #[derive(Debug)]
 pub struct TWCA {
     cert: X509,
     pkey: PKey<Private>,
+    fix_content: String,
+}
+
+fn get_cert_person_id(cert: &X509) -> Result<String, TWCAError> {
+    let sub = cert.subject_name();
+    match sub.entries_by_nid(Nid::COMMONNAME).nth(0) {
+        Some(cn) => {
+            let cn = cn
+                .data()
+                .as_utf8()
+                .context(OpensslSnafu {})?
+                .to_string()
+                .split("-")
+                .nth(0)
+                .context(CertCNNotFoundSnafu {})?
+                .to_string();
+            Ok(cn)
+        }
+        None => Err(TWCAError::CertPersonIdNotFound {}),
+    }
 }
 
 impl TWCA {
-    pub fn new(path: &str, password: &str) -> Result<Self, TWCAError> {
+    pub fn new(path: &str, password: &str, ip: &str) -> Result<Self, TWCAError> {
         let der = std::fs::read(path).context(ReadFileSnafu {})?;
         let p12 = Pkcs12::from_der(&der).context(OpensslSnafu {})?;
         let parsed_p12 = p12.parse2(&password).context(OpensslSnafu {})?;
         let cert = parsed_p12.cert.context(CertNotFoundSnafu {})?;
         let pkey = parsed_p12.pkey.context(PKeyNotFoundSnafu {})?;
-        Ok(TWCA { cert, pkey })
+        let person_id = get_cert_person_id(&cert)?;
+        let fix_content = format!("{}{}", person_id, ip);
+        Ok(TWCA {
+            cert,
+            pkey,
+            fix_content,
+        })
     }
 
     pub fn get_cert_person_id(&self) -> Result<String, TWCAError> {
-        let sub = self.cert.subject_name();
-        match sub.entries_by_nid(Nid::COMMONNAME).nth(0) {
-            Some(cn) => {
-                let cn = cn
-                    .data()
-                    .as_utf8()
-                    .context(OpensslSnafu {})?
-                    .to_string()
-                    .split("-")
-                    .nth(0)
-                    .context(CertCNNotFoundSnafu {})?
-                    .to_string();
-                Ok(cn)
-            }
-            None => Err(TWCAError::CertCNNotFound {}),
-        }
+        get_cert_person_id(&self.cert)
     }
 
     pub fn get_expire_time(&self) -> Result<DateTime, TWCAError> {
@@ -88,11 +105,14 @@ impl TWCA {
     }
 
     pub fn get_quote_sign(&self, plain_text: &str) -> Result<String, TWCAError> {
-        self._sign(&plain_text.as_bytes())
+        Ok(utf8_percent_encode(&self._sign(&plain_text.as_bytes())?, NON_ALPHANUMERIC).to_string())
     }
 
     pub fn sign(&self, plain_text: &str) -> Result<String, TWCAError> {
-        self._sign(&plain_text.as_bytes())
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .context(SystemTimeSnafu {})?;
+        self.get_quote_sign(&format!("{}{}{}", self.fix_content, plain_text, now.as_secs()))
     }
 }
 pub fn load_cert(der: &[u8], password: &str) -> Option<ParsedPkcs12_2> {
@@ -163,7 +183,7 @@ mod tests {
     fn it_works() {
         let path = std::env::var("PFX_PATH").unwrap_or(String::from("Sinopac.pfx"));
         let password = std::env::var("PFX_PASSWORD").unwrap_or(String::from(""));
-        let ca = TWCA::new(&path, &password).unwrap();
+        let ca = TWCA::new(&path, &password, "127.0.0.1").unwrap();
         println!("{:?}", ca);
         let person_id = ca.get_cert_person_id().unwrap();
         println!("{}", person_id);

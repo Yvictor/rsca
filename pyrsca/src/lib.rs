@@ -25,8 +25,8 @@ impl std::convert::From<PyTWCAError> for PyErr {
 #[pymethods]
 impl PyTWCA {
     #[new]
-    fn new(path: &str, password: &str) -> Result<Self, PyTWCAError> {
-        let twca = rsca::TWCA::new(path, password)?;
+    fn new(path: &str, password: &str, ip: &str) -> Result<Self, PyTWCAError> {
+        let twca = rsca::TWCA::new(path, password, ip)?;
         Ok(PyTWCA { twca })
     }
 
