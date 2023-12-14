@@ -136,4 +136,3 @@ jobs:
         with:
           command: upload
           args: --non-interactive --skip-existing *
-          working-directory: pyrsca
