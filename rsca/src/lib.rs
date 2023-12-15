@@ -62,6 +62,8 @@ fn get_cert_person_id(cert: &X509) -> Result<String, TWCAError> {
 
 impl TWCA {
     pub fn new(path: &str, password: &str, ip: &str) -> Result<Self, TWCAError> {
+        let _provider =
+            openssl::provider::Provider::try_load(None, "legacy", true).context(OpensslSnafu {})?;
         let der = std::fs::read(path).context(ReadFileSnafu {})?;
         let p12 = Pkcs12::from_der(&der).context(OpensslSnafu {})?;
         let parsed_p12 = p12.parse2(&password).context(OpensslSnafu {})?;
@@ -112,7 +114,12 @@ impl TWCA {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::SystemTime::UNIX_EPOCH)
             .context(SystemTimeSnafu {})?;
-        self.get_quote_sign(&format!("{}{}{}", self.fix_content, plain_text, now.as_secs()))
+        self.get_quote_sign(&format!(
+            "{}{}{}",
+            self.fix_content,
+            plain_text,
+            now.as_secs()
+        ))
     }
 }
 pub fn load_cert(der: &[u8], password: &str) -> Option<ParsedPkcs12_2> {
