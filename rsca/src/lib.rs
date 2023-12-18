@@ -25,6 +25,8 @@ pub enum TWCAError {
     DatetimeParse { error: String },
     #[snafu(display("ReadFile Error {}", source))]
     ReadFile { source: std::io::Error },
+    #[snafu(display("Ca Password Incorrect: {}", source))]
+    CaPasswordError { source: ErrorStack },
     #[snafu(display("Cert Not Found"))]
     CertNotFound {},
     #[snafu(display("PKey Not Found"))]
@@ -62,11 +64,11 @@ fn get_cert_person_id(cert: &X509) -> Result<String, TWCAError> {
 
 impl TWCA {
     pub fn new(path: &str, password: &str, ip: &str) -> Result<Self, TWCAError> {
-        let _provider =
-            openssl::provider::Provider::try_load(None, "legacy", true).context(OpensslSnafu {})?;
+        // let _provider =
+            // openssl::provider::Provider::try_load(None, "legacy", true).context(OpensslSnafu {})?;
         let der = std::fs::read(path).context(ReadFileSnafu {})?;
         let p12 = Pkcs12::from_der(&der).context(OpensslSnafu {})?;
-        let parsed_p12 = p12.parse2(&password).context(OpensslSnafu {})?;
+        let parsed_p12 = p12.parse2(&password).context(CaPasswordSnafu {})?;
         let cert = parsed_p12.cert.context(CertNotFoundSnafu {})?;
         let pkey = parsed_p12.pkey.context(PKeyNotFoundSnafu {})?;
         let person_id = get_cert_person_id(&cert)?;
