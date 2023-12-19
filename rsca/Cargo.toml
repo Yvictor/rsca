@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 base64 = "0.21.5"
-openssl = { version = " = 0.10.30" }
+openssl = { version = " = 0.10.30", features = ["vendored"]}
 percent-encoding = "2.3.1"
 snafu = "0.7.5"
 speedate = "0.13.0"
