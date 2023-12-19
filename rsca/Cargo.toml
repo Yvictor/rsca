@@ -14,3 +14,4 @@ speedate = "0.13.0"
 
 [build-dependencies]
 openssl-src = "111"
+openssl-sys = "0.9.92"
