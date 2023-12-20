@@ -11,6 +11,8 @@ openssl = { version = " = 0.10.57", features = ["vendored"]}
 percent-encoding = "2.3.1"
 snafu = "0.7.5"
 speedate = "0.13.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
 
 [build-dependencies]
 openssl-src = " = 111"

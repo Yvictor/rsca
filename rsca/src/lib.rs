@@ -12,6 +12,8 @@ use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use snafu::prelude::Snafu;
 use snafu::{OptionExt, ResultExt};
 use speedate::DateTime;
+use tracing::info;
+// use tracing_subscriber;
 
 #[derive(Debug, Snafu)]
 pub enum TWCAError {
@@ -99,12 +101,18 @@ impl TWCA {
     }
 
     pub fn _sign(&self, data: &[u8]) -> Result<String, TWCAError> {
+        info!("new stack");
         let certs = Stack::new().context(OpensslSnafu {})?;
+        info!("sign");
         let sign = Pkcs7::sign(&self.cert, &self.pkey, &certs, &data, Pkcs7Flags::BINARY)
             .context(OpensslSnafu {})?;
+        info!("signed done to pem");
         let der = sign.to_pem().context(OpensslSnafu {})?;
+        info!("to pem done");
         let ss: Vec<&str> = std::str::from_utf8(&der).unwrap().split("\n").collect();
+        info!("split");
         let s = ss.get(1..ss.len() - 2).unwrap().join("");
+        info!("done");
         Ok(s)
     }
 
@@ -113,9 +121,11 @@ impl TWCA {
     }
 
     pub fn sign(&self, plain_text: &str) -> Result<String, TWCAError> {
+        info!("now");
         let now = std::time::SystemTime::now()
             .duration_since(std::time::SystemTime::UNIX_EPOCH)
             .context(SystemTimeSnafu {})?;
+        info!("get now done.");
         self.get_quote_sign(&format!(
             "{}{}{}",
             self.fix_content,

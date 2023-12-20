@@ -30,6 +30,10 @@ impl PyTWCA {
         Ok(PyTWCA { twca })
     }
 
+    fn init_logger(&self) {
+        tracing_subscriber::fmt::init();
+    }
+
     fn get_cert_person_id(&self) -> Result<String, PyTWCAError> {
         Ok(self.twca.get_cert_person_id()?)
     }
