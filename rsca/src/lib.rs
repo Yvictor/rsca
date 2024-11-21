@@ -27,7 +27,7 @@ pub enum TWCAError {
     DatetimeParse { error: String },
     #[snafu(display("ReadFile Error {}", source))]
     ReadFile { source: std::io::Error },
-    #[snafu(display("Ca Password Incorrect: {}", source))]
+    #[snafu(display("Ca Password Incorrect"))]
     CaPasswordError { source: ErrorStack },
     #[snafu(display("Cert Not Found"))]
     CertNotFound {},
