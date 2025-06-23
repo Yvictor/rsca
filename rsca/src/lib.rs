@@ -1,13 +1,15 @@
 use openssl::asn1::Asn1Time;
 use openssl::error::ErrorStack;
+use openssl::hash::MessageDigest;
 use openssl::nid::Nid;
 use openssl::pkcs12::{ParsedPkcs12_2, Pkcs12};
 use openssl::pkcs7::{Pkcs7, Pkcs7Flags};
 use openssl::pkey::{PKey, Private};
+use openssl::sign::Signer;
 use openssl::stack::Stack;
 use openssl::x509::X509;
 use std::time::SystemTimeError;
-// use base64::{Engine as _, engine::general_purpose};
+use base64::{Engine as _, engine::general_purpose as b64};
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use snafu::prelude::Snafu;
 use snafu::{OptionExt, ResultExt};
@@ -63,6 +65,15 @@ fn get_cert_person_id(cert: &X509) -> Result<String, TWCAError> {
         None => Err(TWCAError::CertPersonIdNotFound {}),
     }
 }
+
+
+fn signed_pkcs1(pkey: &PKey<Private>, message: &[u8]) -> Result<String, ErrorStack> {
+    let mut signer = Signer::new(MessageDigest::sha1(), pkey)?;
+    signer.update(message)?;
+    let signature = signer.sign_to_vec()?;
+    Ok(b64::STANDARD_NO_PAD.encode(&signature))
+}
+
 
 impl TWCA {
     pub fn new(path: &str, password: &str, ip: &str) -> Result<Self, TWCAError> {
@@ -132,6 +143,43 @@ impl TWCA {
             plain_text,
             now.as_secs()
         ))
+    }
+
+    /// Get base64 encoded certificate
+    pub fn get_cert_base64(&self) -> Result<String, TWCAError> {
+        let der = self.cert.to_der().context(OpensslSnafu {})?;
+        Ok(b64::STANDARD_NO_PAD.encode(&der))
+    }
+
+    /// PKCS1 signature with base64 encoded data and certificate
+    pub fn sign_pkcs1(&self, plain_text: &str) -> Result<String, TWCAError> {
+        info!("pkcs1 signing");
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .context(SystemTimeSnafu {})?;
+        
+        let data_to_sign = format!(
+            "{}{}{}",
+            self.fix_content,
+            plain_text,
+            now.as_secs()
+        );
+        
+        // Get base64 encoded original data
+        let base64_data = b64::STANDARD_NO_PAD.encode(data_to_sign.as_bytes());
+        
+        // Create PKCS1 signature
+        let signature = signed_pkcs1(&self.pkey, data_to_sign.as_bytes())
+            .context(OpensslSnafu {})?;
+        
+        // Get base64 encoded certificate
+        let cert_base64 = self.get_cert_base64()?;
+        
+        // Join with dots and add pkcs1 prefix
+        let result = format!("pkcs1.{}.{}.{}", signature, base64_data, cert_base64);
+        
+        info!("pkcs1 signing done");
+        Ok(result)
     }
 }
 pub fn load_cert(der: &[u8], password: &str) -> Option<ParsedPkcs12_2> {

@@ -111,7 +111,9 @@ This project supports Python 3.7+ and uses Python 3.11 by default. You can chang
 ### Features
 
 - **PyTWCA**: Python wrapper for TWCA certificate operations
-- **Signature operations**: Sign data using certificates
+- **PKCS7 Signature**: Traditional PKCS7 signature operations
+- **PKCS1 Signature**: New PKCS1 signature with base64 encoded data and certificate
+- **Certificate operations**: Extract certificate information and base64 encoding
 - **Certificate validation**: Validate and extract certificate information
 
 ### Usage Example
@@ -126,9 +128,18 @@ twca = PyTWCA("/path/to/cert.pfx", "password", "192.168.1.1")
 person_id = twca.get_cert_person_id()
 print(f"Certificate Person ID: {person_id}")
 
-# Sign data
-signature = twca.sign("data to sign")
-print(f"Signature: {signature}")
+# PKCS7 signature (traditional method)
+pkcs7_signature = twca.sign("data to sign")
+print(f"PKCS7 Signature: {pkcs7_signature}")
+
+# PKCS1 signature (new method) - returns format: pkcs1.{signature}.{data_base64}.{cert_base64}
+pkcs1_result = twca.sign_pkcs1("data to sign")
+print(f"PKCS1 Result: {pkcs1_result}")
+
+# Get base64 encoded certificate
+cert_base64 = twca.get_cert_base64()
+print(f"Certificate Base64: {cert_base64}")
+
 
 # Check expiration
 expire_timestamp = twca.get_expire_timestamp()

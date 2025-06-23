@@ -24,6 +24,7 @@ show_help() {
     echo "  test       - Run tests"
     echo "  clean      - Clean build artifacts"
     echo "  install    - Install package in editable mode"
+    echo "  bench      - Run benchmarks"
     echo "  help       - Show this help"
     echo ""
 }
@@ -55,6 +56,10 @@ case "${1:-help}" in
     "install")
         echo "📥 Installing in editable mode..."
         uv run maturin develop --release
+        ;;
+    "bench")
+        echo "⏱️ Running benchmarks..."
+        uv run pytest --benchmark-only benches/bench_signing.py
         ;;
     "help"|"--help"|"-h")
         show_help

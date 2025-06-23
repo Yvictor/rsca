@@ -58,6 +58,14 @@ impl PyTWCA {
     fn sign(&self, plain_text: &str) -> Result<String, PyTWCAError> {
         Ok(self.twca.sign(&plain_text)?)
     }
+
+    fn get_cert_base64(&self) -> Result<String, PyTWCAError> {
+        Ok(self.twca.get_cert_base64()?)
+    }
+
+    fn sign_pkcs1(&self, plain_text: &str) -> Result<String, PyTWCAError> {
+        Ok(self.twca.sign_pkcs1(&plain_text)?)
+    }
 }
 
 /// Formats the sum of two numbers as string.

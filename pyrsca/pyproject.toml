@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "pyrsca"
 description = "Python bindings for rsca library"
-version = "0.1.3"
+version = "0.2.0"
 readme = "README.md"
 requires-python = ">=3.7"
 authors = [
@@ -34,6 +34,7 @@ dev = [
     "pytest>=6.0",
     "pytest-dotenv>=0.5.2",
     "maturin>=1.2,<2.0",
+    "pytest-benchmark>=3.4.1",
 ]
 test = [
     "pytest>=6.0",
@@ -50,7 +51,16 @@ dev-dependencies = [
     "pytest>=6.0",
     "pytest-dotenv>=0.5.2",
     "maturin>=1.2,<2.0",
+    "pytest-benchmark>=3.4.1",
 ]
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+    "benches",
+]
