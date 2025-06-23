@@ -1,5 +1,6 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::{PyModule};
 // use pyo3::types::PyBytes;
 
 #[pyclass]
@@ -74,7 +75,7 @@ fn sign(path: &str, password: &str) -> PyResult<String> {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn pyrsca(_py: Python, m: &PyModule) -> PyResult<()> {
+fn pyrsca(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sign, m)?)?;
     m.add_class::<PyTWCA>()?;
     Ok(())

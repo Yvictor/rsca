@@ -3,3 +3,4 @@ members = [
     "rsca",
     "pyrsca",
 ]
+resolver = "2"

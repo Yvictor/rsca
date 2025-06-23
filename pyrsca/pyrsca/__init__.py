@@ -1,1 +1,1 @@
-from .pyrsca import PyTWCA
+from .pyrsca import PyTWCA  # noqa: F401
