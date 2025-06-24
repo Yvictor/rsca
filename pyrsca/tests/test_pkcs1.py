@@ -59,14 +59,14 @@ def test_sign_pkcs1(twca):
     # Verify base64 formats
     import base64
     try:
-        base64.b64decode(signature + "==")  # Add padding if needed
-        base64.b64decode(cert_base64 + "==")
-        base64.b64decode(base64_data + "==")
+        base64.b64decode(signature)  # Add padding if needed
+        base64.b64decode(cert_base64)
+        base64.b64decode(base64_data)
     except Exception:
         assert False, "Invalid base64 format in PKCS1 signature result"
     
     # Verify base64_data decodes to expected content format
-    decoded_data = base64.b64decode(base64_data + "==").decode('utf-8')
+    decoded_data = base64.b64decode(base64_data).decode('utf-8')
     assert plain_text in decoded_data, "Original plain text should be in the signed data"
 
 

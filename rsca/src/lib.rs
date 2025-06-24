@@ -15,7 +15,24 @@ use snafu::prelude::Snafu;
 use snafu::{OptionExt, ResultExt};
 use speedate::DateTime;
 use tracing::info;
+use itoa;
+use coarsetime::Clock;
 // use tracing_subscriber;
+
+// --- New functions for isolated benchmarking ---
+#[inline(never)]
+pub fn get_timestamp_coarse() -> u64 {
+    Clock::now_since_epoch().as_secs()
+}
+
+#[inline(never)]
+pub fn get_timestamp_system() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+}
+// --- End of new functions ---
 
 #[derive(Debug, Snafu)]
 pub enum TWCAError {
@@ -45,6 +62,7 @@ pub struct TWCA {
     cert: X509,
     pkey: PKey<Private>,
     fix_content: String,
+    cert_base64_cache: String,
 }
 
 fn get_cert_person_id(cert: &X509) -> Result<String, TWCAError> {
@@ -66,15 +84,6 @@ fn get_cert_person_id(cert: &X509) -> Result<String, TWCAError> {
     }
 }
 
-
-fn signed_pkcs1(pkey: &PKey<Private>, message: &[u8]) -> Result<String, ErrorStack> {
-    let mut signer = Signer::new(MessageDigest::sha1(), pkey)?;
-    signer.update(message)?;
-    let signature = signer.sign_to_vec()?;
-    Ok(b64::STANDARD_NO_PAD.encode(&signature))
-}
-
-
 impl TWCA {
     pub fn new(path: &str, password: &str, ip: &str) -> Result<Self, TWCAError> {
         // let _provider =
@@ -86,10 +95,14 @@ impl TWCA {
         let pkey = parsed_p12.pkey.context(PKeyNotFoundSnafu {})?;
         let person_id = get_cert_person_id(&cert)?;
         let fix_content = format!("{}{}", person_id, ip);
+        let cert_base64_cache =
+            b64::STANDARD.encode(cert.to_der().context(OpensslSnafu {})?);
+
         Ok(TWCA {
             cert,
             pkey,
             fix_content,
+            cert_base64_cache,
         })
     }
 
@@ -146,38 +159,50 @@ impl TWCA {
     }
 
     /// Get base64 encoded certificate
-    pub fn get_cert_base64(&self) -> Result<String, TWCAError> {
-        let der = self.cert.to_der().context(OpensslSnafu {})?;
-        Ok(b64::STANDARD_NO_PAD.encode(&der))
+    pub fn get_cert_base64(&self) -> Result<&str, TWCAError> {
+        Ok(&self.cert_base64_cache)
     }
 
     /// PKCS1 signature with base64 encoded data and certificate
     pub fn sign_pkcs1(&self, plain_text: &str) -> Result<String, TWCAError> {
         info!("pkcs1 signing");
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-            .context(SystemTimeSnafu {})?;
+        // let now_secs = get_timestamp_system();
+        let now_secs = get_timestamp_coarse();
         
-        let data_to_sign = format!(
-            "{}{}{}",
-            self.fix_content,
-            plain_text,
-            now.as_secs()
-        );
-        
-        // Get base64 encoded original data
-        let base64_data = b64::STANDARD_NO_PAD.encode(data_to_sign.as_bytes());
-        
-        // Create PKCS1 signature
-        let signature = signed_pkcs1(&self.pkey, data_to_sign.as_bytes())
-            .context(OpensslSnafu {})?;
-        
-        // Get base64 encoded certificate
+        // Use itoa to format timestamp on the stack, avoiding heap allocation.
+        let mut buffer = itoa::Buffer::new();
+        let now_secs_str = buffer.format(now_secs);
+
+        // Prepare data for base64 encoding (still needs one allocation here)
+        let data = [
+            self.fix_content.as_bytes(),
+            plain_text.as_bytes(),
+            now_secs_str.as_bytes(),
+        ]
+        .concat();
+        // Strategy 2: Update signer in chunks to avoid intermediate allocation for data_to_sign
+        let mut signer = Signer::new(MessageDigest::sha1(), &self.pkey).context(OpensslSnafu {})?;
+        signer.update(&data).context(OpensslSnafu {})?;
+        // signer.update(self.fix_content.as_bytes()).context(OpensslSnafu {})?;
+        // signer.update(plain_text.as_bytes()).context(OpensslSnafu {})?;
+        // signer.update(now_secs_str.as_bytes()).context(OpensslSnafu {})?;
+        let signature = signer.sign_to_vec().context(OpensslSnafu {})?;
+        let signature_base64 = b64::STANDARD.encode(&signature);
+        let data_base64 = b64::STANDARD.encode(&data);
+
+        // This uses the cache from Strategy 1
         let cert_base64 = self.get_cert_base64()?;
-        
-        // Join with dots and add pkcs1 prefix
-        let result = format!("pkcs1.{}.{}.{}", signature, base64_data, cert_base64);
-        
+
+        // Strategy 3: Pre-allocate the final string
+        let total_len = "pkcs1.".len() + signature_base64.len() + 1 + data_base64.len() + 1 + cert_base64.len();
+        let mut result = String::with_capacity(total_len);
+        result.push_str("pkcs1.");
+        result.push_str(&signature_base64);
+        result.push('.');
+        result.push_str(&data_base64);
+        result.push('.');
+        result.push_str(cert_base64);
+
         info!("pkcs1 signing done");
         Ok(result)
     }

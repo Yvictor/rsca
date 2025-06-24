@@ -60,7 +60,7 @@ impl PyTWCA {
     }
 
     fn get_cert_base64(&self) -> Result<String, PyTWCAError> {
-        Ok(self.twca.get_cert_base64()?)
+        Ok(self.twca.get_cert_base64()?.to_string())
     }
 
     fn sign_pkcs1(&self, plain_text: &str) -> Result<String, PyTWCAError> {

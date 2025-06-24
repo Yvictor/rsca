@@ -13,7 +13,20 @@ snafu = "0.7.5"
 speedate = "0.13.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
+itoa = "1.0"
+coarsetime = "0.1"
+
+[dev-dependencies]
+criterion = "0.5"
 
 [build-dependencies]
 openssl-src = " = 111"
 openssl-sys = " = 0.9.92"
+
+[[bench]]
+name = "time_benchmark"
+harness = false
+
+[[bench]]
+name = "signing_benchmark"
+harness = false
