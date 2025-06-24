@@ -21,7 +21,7 @@ criterion = "0.5"
 
 [build-dependencies]
 openssl-src = " = 111"
-openssl-sys = " = 0.9.92"
+openssl-sys = { version = " = 0.9.92", features = ["vendored"]}
 
 [[bench]]
 name = "time_benchmark"

@@ -5,6 +5,7 @@ use openssl::nid::Nid;
 use openssl::pkcs12::{ParsedPkcs12_2, Pkcs12};
 use openssl::pkcs7::{Pkcs7, Pkcs7Flags};
 use openssl::pkey::{PKey, Private};
+// use openssl::provider::Provider;
 use openssl::sign::Signer;
 use openssl::stack::Stack;
 use openssl::x509::X509;
@@ -46,7 +47,7 @@ pub enum TWCAError {
     DatetimeParse { error: String },
     #[snafu(display("ReadFile Error {}", source))]
     ReadFile { source: std::io::Error },
-    #[snafu(display("Ca Password Incorrect"))]
+    #[snafu(display("Ca Password Incorrect {}", source))]
     CaPasswordError { source: ErrorStack },
     #[snafu(display("Cert Not Found"))]
     CertNotFound {},
@@ -87,7 +88,7 @@ fn get_cert_person_id(cert: &X509) -> Result<String, TWCAError> {
 impl TWCA {
     pub fn new(path: &str, password: &str, ip: &str) -> Result<Self, TWCAError> {
         // let _provider =
-            // openssl::provider::Provider::try_load(None, "legacy", true).context(OpensslSnafu {})?;
+        //     openssl::provider::Provider::try_load(None, "legacy", true).context(OpensslSnafu {})?;
         let der = std::fs::read(path).context(ReadFileSnafu {})?;
         let p12 = Pkcs12::from_der(&der).context(OpensslSnafu {})?;
         let parsed_p12 = p12.parse2(&password).context(CaPasswordSnafu {})?;
@@ -208,6 +209,7 @@ impl TWCA {
     }
 }
 pub fn load_cert(der: &[u8], password: &str) -> Option<ParsedPkcs12_2> {
+    // let _provider = Provider::try_load(None, "legacy", true).ok()?;
     let res = Pkcs12::from_der(&der);
     match res {
         Ok(pkcs12) => {
