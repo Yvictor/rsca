@@ -2,6 +2,8 @@
 name = "rsca"
 version = "0.2.0"
 edition = "2021"
+description = "A Rust library for TWCA digital signature operations with PKCS#7 and PKCS#1 support"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
