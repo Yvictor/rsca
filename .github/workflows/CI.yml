@@ -24,16 +24,27 @@ jobs:
     strategy:
       matrix:
         target: [x86_64, x86, aarch64, armv7, ppc64le] # s390x
+        python-version: ['3.10', '3.14t']
+        exclude:
+          # Only build 3.14t for x86_64, aarch64 and armv7
+          - target: x86
+            python-version: '3.14t'
+          - target: ppc64le
+            python-version: '3.14t'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
+      - name: Set PYTHON_GIL for free-threaded
+        if: endsWith(matrix.python-version, 't')
+        run: echo "PYTHON_GIL=0" >> "$GITHUB_ENV"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist
+          args: --release --out dist ${{ endsWith(matrix.python-version, 't') && '-i python3.14t' || '' }}
           sccache: 'true'
           manylinux: auto
           working-directory: pyrsca
@@ -54,7 +65,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-${{ matrix.target }}
+          name: wheels-linux-${{ matrix.target }}-${{ matrix.python-version }}
           path: pyrsca/dist
 
   windows:
@@ -62,17 +73,26 @@ jobs:
     strategy:
       matrix:
         target: [x64, x86]
+        python-version: ['3.10', '3.14t']
+        exclude:
+          # Only build 3.14t for x64
+          - target: x86
+            python-version: '3.14t'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.python-version }}
           architecture: ${{ matrix.target }}
+          allow-prereleases: true
+      - name: Set PYTHON_GIL for free-threaded
+        if: endsWith(matrix.python-version, 't')
+        run: echo "PYTHON_GIL=0" >> "$env:GITHUB_ENV"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist
+          args: --release --out dist ${{ endsWith(matrix.python-version, 't') && '-i python3.14t' || '' }}
           sccache: 'true'
           working-directory: pyrsca
         env:
@@ -80,7 +100,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-windows-${{ matrix.target }}
+          name: wheels-windows-${{ matrix.target }}-${{ matrix.python-version }}
           path: pyrsca/dist
 
   macos:
@@ -88,22 +108,27 @@ jobs:
     strategy:
       matrix:
         target: [x86_64, aarch64]
+        python-version: ['3.10', '3.14t']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
+      - name: Set PYTHON_GIL for free-threaded
+        if: endsWith(matrix.python-version, 't')
+        run: echo "PYTHON_GIL=0" >> "$GITHUB_ENV"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist
+          args: --release --out dist ${{ endsWith(matrix.python-version, 't') && '-i python3.14t' || '' }}
           sccache: 'true'
           working-directory: pyrsca
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-macos-${{ matrix.target }}
+          name: wheels-macos-${{ matrix.target }}-${{ matrix.python-version }}
           path: pyrsca/dist
 
   sdist:
@@ -121,6 +146,71 @@ jobs:
         with:
           name: sdist
           path: pyrsca/dist
+
+  # test-python314:
+  #   name: Test Python 3.14
+  #   runs-on: ubuntu-latest
+  #   needs: [linux]
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-python@v5
+  #       with:
+  #         python-version: '3.14'
+  #     - name: Download wheels
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: wheels-linux-x86_64-3.10
+  #         path: dist
+  #     - name: Install wheel
+  #       run: |
+  #         pip install dist/*.whl
+  #     - name: Install test dependencies
+  #       run: |
+  #         pip install pytest pytest-dotenv
+  #     - name: Copy tests to temp directory
+  #       run: |
+  #         cp -r pyrsca/tests /tmp/tests
+  #         cp pyrsca/.env.template /tmp/.env || true
+  #     - name: Run tests
+  #       working-directory: /tmp
+  #       run: |
+  #         pytest tests/
+
+  # test-python314t:
+  #   name: Test Python 3.14t (Free-threaded)
+  #   runs-on: ubuntu-latest
+  #   needs: [linux]
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-python@v5
+  #       with:
+  #         python-version: '3.14t'
+  #         allow-prereleases: true
+  #     - name: Set PYTHON_GIL
+  #       run: echo "PYTHON_GIL=0" >> "$GITHUB_ENV"
+  #     - name: Verify free-threaded mode
+  #       run: |
+  #         python --version --version
+  #         python -c "import sys; print(f'GIL enabled: {sys._is_gil_enabled()}')"
+  #     - name: Download wheels
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: wheels-linux-x86_64-3.14t
+  #         path: dist
+  #     - name: Install wheel
+  #       run: |
+  #         pip install dist/*.whl
+  #     - name: Install test dependencies
+  #       run: |
+  #         pip install pytest pytest-dotenv
+  #     - name: Copy tests to temp directory
+  #       run: |
+  #         cp -r pyrsca/tests /tmp/tests
+  #         cp pyrsca/.env.template /tmp/.env || true
+  #     - name: Run tests
+  #       working-directory: /tmp
+  #       run: |
+  #         pytest tests/
 
   release:
     name: Release

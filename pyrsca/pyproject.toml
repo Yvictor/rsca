@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "pyrsca"
 description = "Python bindings for rsca library"
-version = "0.2.0"
+version = "0.3.0"
 readme = "README.md"
 requires-python = ">=3.7"
 authors = [
@@ -24,6 +24,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 keywords = ["rust", "cryptography", "signature"]
 
